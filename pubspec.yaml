@@ -1,0 +1,34 @@
+name: auto_gallery
+description: A new Flutter application.
+
+# The following line prevents the package from being accidentally published to
+# pub.dev using `pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.12.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  lint: ^1.5.3
+  flutter_test:
+    sdk: flutter
+
+flutter:
+
+  uses-material-design: true
+
+  fonts:
+     - family: Berky
+       fonts:
+         - asset: fonts/berkshire.ttf
+     - family: Monty
+       fonts:
+         - asset: fonts/monty_light.ttf
+         - asset: fonts/monty_semi.ttf
+           weight: 600
