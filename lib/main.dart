@@ -1,8 +1,12 @@
+import 'package:auto_gallery/db/image_model.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/adapters.dart';
 
 import 'app_routes.dart';
 
-void main() {
+Future<void> main() async {
+  await Hive.initFlutter();
+  Hive.registerAdapter(AutoImageAdapter());
   runApp(MyApp());
 }
 
@@ -14,6 +18,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       routes: appRoutes,
       initialRoute: kHomePageRoute,
+      theme: ThemeData(fontFamily: 'Monty'),
     );
   }
 }

@@ -13,15 +13,24 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  hive: ^2.0.4
+  hive_flutter: ^1.1.0
+  image_picker: ^0.8.3
+  path_provider: ^2.0.2
 
 dev_dependencies:
-  lint: ^1.5.3
+  build_runner: ^2.1.0
   flutter_test:
     sdk: flutter
+  hive_generator: ^1.1.0
+  lint: ^1.5.3
 
 flutter:
 
   uses-material-design: true
+
+  assets:
+    - assets/Empty.gif
 
   fonts:
      - family: Berky
@@ -29,6 +38,6 @@ flutter:
          - asset: fonts/berkshire.ttf
      - family: Monty
        fonts:
-         - asset: fonts/monty_light.ttf
+         - asset: fonts/monty_reg.ttf
          - asset: fonts/monty_semi.ttf
            weight: 600
