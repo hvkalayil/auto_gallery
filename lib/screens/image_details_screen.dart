@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:auto_gallery/app_theme.dart';
 import 'package:auto_gallery/date_names.dart';
+import 'package:auto_gallery/db/db_config.dart';
 import 'package:auto_gallery/db/image_model.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ImageDetailsScreen extends StatelessWidget {
   const ImageDetailsScreen({Key? key}) : super(key: key);
@@ -14,6 +16,7 @@ class ImageDetailsScreen extends StatelessWidget {
     final AutoImage _image =
         // ignore: cast_nullable_to_non_nullable
         ModalRoute.of(context)!.settings.arguments as AutoImage;
+
     final String _dateString =
         '${_image.dateTaken.day} ${monthNames[_image.dateTaken.month]} ${_image.dateTaken.year}';
     final String _weekDay = weekNames[_image.dateTaken.weekday];
@@ -70,7 +73,7 @@ class ImageDetailsScreen extends StatelessWidget {
                       ),
                       Text(
                         _weekDay,
-                        style: TextStyle(fontSize: 20),
+                        style: const TextStyle(fontSize: 20),
                       )
                     ],
                   ),
@@ -80,13 +83,13 @@ class ImageDetailsScreen extends StatelessWidget {
                 Row(
                   children: <Widget>[
                     IconButton(
-                      onPressed: _shareImage,
+                      onPressed: () async => _shareImage(_image.path),
                       icon: const Icon(Icons.share),
                       tooltip: 'Share',
                     ),
                     const SizedBox(width: 20),
                     IconButton(
-                      onPressed: _deleteImage,
+                      onPressed: () => _deleteImage(context, _image.key),
                       icon: const Icon(Icons.delete),
                       tooltip: 'Delete',
                     )
@@ -100,7 +103,26 @@ class ImageDetailsScreen extends StatelessWidget {
     );
   }
 
-  void _shareImage() {}
+  Future<void> _shareImage(String path) async => Share.shareFiles([path]);
 
-  void _deleteImage() {}
+  Future<void> _deleteImage(BuildContext context, key) async {
+    showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+              title: const Text('Confirm Delete'),
+              content: const Text('Are you sure you want to delete this image'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(_), child: const Text('No')),
+                TextButton(
+                    onPressed: () async {
+                      final Box<AutoImage> _box =
+                          await Hive.openBox<AutoImage>(kImageBoxName);
+                      await _box.delete(key);
+                      Navigator.popUntil(context, (route) => route.isFirst);
+                    },
+                    child: const Text('Yes')),
+              ],
+            ));
+  }
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:auto_gallery/app_routes.dart';
 import 'package:auto_gallery/app_theme.dart';
+import 'package:auto_gallery/db/auto_expiry_config.dart';
 import 'package:auto_gallery/db/db_config.dart';
 import 'package:auto_gallery/db/image_model.dart';
 import 'package:auto_gallery/date_names.dart';
@@ -112,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3, mainAxisSpacing: 2.5, crossAxisSpacing: 2.5),
             itemBuilder: (context, index) =>
-                imageBuilder(context, images?[index]))
+                imageBuilder(context, images?[images.length - 1 - index]))
       ],
     );
   }
@@ -183,16 +184,43 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   //Program Logic Functions
+  Box<AutoImage>? _box;
   Future<Box<AutoImage>> _openBox() async =>
-      Hive.openBox<AutoImage>(kImageBoxName);
+      _box = await Hive.openBox<AutoImage>(kImageBoxName);
 
   bool isFormatted = false;
-  void _formatData(Box<AutoImage>? data) {
+  bool isImageExpired = false;
+  final List<AutoImage> _expiredList = [];
+  Future<void> _formatData(Box<AutoImage>? data) async {
     isFormatted = true;
+    final DateTime _expiry =
+        DateTime.now().subtract(await getAutoExpiryDuration());
+
+    // Looping through each record
     data?.toMap().forEach((key, value) {
+      //Checking for expiry
+      if (value.dateTaken.isBefore(_expiry)) {
+        isImageExpired = true;
+        _expiredList.add(value);
+      }
       final String _dateYear =
           '${value.dateTaken.year}**${value.dateTaken.month}';
-      if (!imageDateClass.contains(_dateYear)) {
+      // Accumulating images
+      if (imageDateClass.contains(_dateYear)) {
+        // If image date was already classified.
+        if (imageDateObj.containsKey(_dateYear)) {
+          final List<AutoImage> _updatedList = imageDateObj[_dateYear] ?? [];
+          _updatedList.add(value);
+          imageDateObj[_dateYear] = _updatedList;
+        }
+        // Accumulating to temporary list
+        else {
+          tempClass.add(value);
+        }
+      }
+
+      // Grouping images in Map
+      else {
         if (imageDateClass.isNotEmpty) {
           final Map<String, List<AutoImage>> dateObj =
               <String, List<AutoImage>>{imageDateClass.last: tempClass};
@@ -200,9 +228,11 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         imageDateClass.add(_dateYear);
         tempClass = [];
+        tempClass.add(value);
       }
-      tempClass.add(value);
     });
+
+    // Classifying leftovers
     if (tempClass.isNotEmpty) {
       final Map<String, List<AutoImage>> dateObj = <String, List<AutoImage>>{
         imageDateClass.last: tempClass
@@ -210,28 +240,87 @@ class _HomeScreenState extends State<HomeScreen> {
       imageDateObj.addAll(dateObj);
       tempClass = [];
     }
-    imageDateClass = List<String>.from(imageDateClass.reversed);
+
+    if (isImageExpired) {
+      _deleteConfirmation();
+    }
     log(imageDateObj.toString());
+    log(imageDateClass.toString());
+    setState(() {});
   }
 
-  void _contextMenuAction(CtxEntries value) {}
+  void _deleteConfirmation() => showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+            title: const Text('Expiry warning'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Image.asset('assets/expired.png'),
+                const Text(
+                    'Some images have passed expiration date. Do you want to delete them?'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(_), child: const Text('No')),
+              TextButton(
+                  onPressed: () async => _deleteExpiredImages(_expiredList, _),
+                  child: const Text('Yes')),
+            ],
+          ));
+
+  Future<void> _deleteExpiredImages(
+      List<AutoImage> expiredImages, BuildContext ctx) async {
+    for (final AutoImage element in expiredImages) {
+      await _box?.delete(element.key);
+      await File(element.path).delete();
+    }
+    Navigator.pop(ctx);
+    setState(() {
+      isFormatted = false;
+      isImageExpired = false;
+      imageDateClass = [];
+      imageDateObj = {};
+    });
+  }
+
+  void _contextMenuAction(CtxEntries value) {
+    switch (value) {
+      case CtxEntries.autoExpiry:
+        if (isImageExpired) {
+          _deleteConfirmation();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No images are expired')));
+        }
+        break;
+      case CtxEntries.expirySettings:
+        Navigator.of(context).pushNamed(kExpirySettingsRoute);
+        break;
+    }
+  }
 
   Future<void> _addNewImage() async {
     //Taking photo
     final ImagePicker _picker = ImagePicker();
     final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
+    if (photo == null) {
+      return;
+    }
 
     //Finding date and path
     final Directory _dir = await getApplicationDocumentsDirectory();
     final DateTime _now = DateTime.now();
     final String _path = '${_dir.path}/${_now.toIso8601String()}.jpg';
-    await photo?.saveTo(_path);
+    await photo.saveTo(_path);
 
     //Adding to database
     await Hive.box<AutoImage>(kImageBoxName).add(AutoImage(_now, _path));
     setState(() {
       isFormatted = false;
       imageDateClass = [];
+      imageDateObj = {};
     });
   }
 

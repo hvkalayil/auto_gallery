@@ -17,6 +17,10 @@ dependencies:
   hive_flutter: ^1.1.0
   image_picker: ^0.8.3
   path_provider: ^2.0.2
+  share_plus: ^2.1.4
+  shared_preferences: ^2.0.6
+  store_redirect: ^2.0.0
+  url_launcher: ^6.0.9
 
 dev_dependencies:
   build_runner: ^2.1.0
@@ -31,6 +35,8 @@ flutter:
 
   assets:
     - assets/Empty.gif
+    - assets/expired.png
+    - assets/easter.png
 
   fonts:
      - family: Berky
