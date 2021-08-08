@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:auto_gallery/app_theme.dart';
 import 'package:auto_gallery/db/auto_expiry_config.dart';
+import 'package:auto_gallery/db/db_config.dart';
+import 'package:auto_gallery/db/image_model.dart';
+import 'package:easy_folder_picker/FolderPicker.dart';
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:store_redirect/store_redirect.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -10,8 +15,16 @@ class ExpirySettingsScreen extends StatefulWidget {
   const ExpirySettingsScreen({Key? key}) : super(key: key);
 
   static const List<int> _months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  static const List<String> _titles = ['Set Auto Expiry Duration', 'Review'];
-  static const List<IconData> _icons = [Icons.access_time, Icons.star];
+  static const List<String> _titles = [
+    'Set Auto Expiry Duration',
+    'Set image folder',
+    'Review'
+  ];
+  static const List<IconData> _icons = [
+    Icons.access_time,
+    Icons.folder,
+    Icons.star
+  ];
 
   @override
   _ExpirySettingsScreenState createState() => _ExpirySettingsScreenState();
@@ -27,7 +40,7 @@ class _ExpirySettingsScreenState extends State<ExpirySettingsScreen> {
           ),
       separatorBuilder: (context, index) => const Divider(
             color: kPrimaryColor,
-            thickness: 5,
+            thickness: 2,
           ),
       itemCount: ExpirySettingsScreen._titles.length);
 
@@ -119,6 +132,34 @@ class _ExpirySettingsScreenState extends State<ExpirySettingsScreen> {
         break;
 
       case 1:
+        final Directory? newDirectory = await FolderPicker.pick(
+            allowFolderCreation: true,
+            context: context,
+            rootDirectory: Directory(FolderPicker.ROOTPATH),
+            message: 'Select Folder to track',
+            shape: RoundedRectangleBorder(borderRadius: kBorderRadius()));
+        if (newDirectory != null) {
+          await Hive.deleteFromDisk();
+          final Box<AutoImage> _box =
+              await Hive.openBox<AutoImage>(kImageBoxName);
+          await setFolderPath(newDirectory.path);
+          final List<FileSystemEntity> _list = newDirectory.listSync();
+          for (final FileSystemEntity _file in _list) {
+            if (_file.path
+                .toLowerCase()
+                // ignore: unnecessary_raw_strings
+                .contains(RegExp(r'jpe?g|png|gif|bmp'))) {
+              final FileStat _stat = await _file.stat();
+              _box.add(AutoImage(_stat.modified, _file.path));
+            }
+          }
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content:
+                  Text('This folder will now be used for adding new images.')));
+        }
+        break;
+
+      case 2:
         await StoreRedirect.redirect(
             androidAppId: 'com.hoseavarghese.auto_gallery');
         break;

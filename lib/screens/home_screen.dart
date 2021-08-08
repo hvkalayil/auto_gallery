@@ -1,5 +1,5 @@
-import 'dart:developer';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:auto_gallery/app_routes.dart';
 import 'package:auto_gallery/app_theme.dart';
@@ -10,7 +10,6 @@ import 'package:auto_gallery/date_names.dart';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'widgets/show_empty.dart';
 import 'widgets/show_loading.dart';
@@ -241,11 +240,33 @@ class _HomeScreenState extends State<HomeScreen> {
       tempClass = [];
     }
 
+    // Sorting by latest first
+    imageDateClass.sort((a, b) {
+      final List<String> aa = a.split('**');
+      final List<String> bb = b.split('**');
+      final String yearA = aa.first;
+      final String yearB = bb.first;
+      int monthA = int.parse(aa.last);
+      int monthB = int.parse(bb.last);
+      if (monthA > 9) {
+        monthA = (pow(10, monthA - 8) - 1).toInt();
+        a = '$yearA**$monthA';
+      }
+      if (monthB > 9) {
+        monthB = (pow(10, monthB - 8) - 1).toInt();
+        b = '$yearB**$monthB';
+      }
+      final int result = a.compareTo(b);
+      return result == 0
+          ? 0
+          : result < 0
+              ? 1
+              : -1;
+    });
+
     if (isImageExpired) {
       _deleteConfirmation();
     }
-    log(imageDateObj.toString());
-    log(imageDateClass.toString());
     setState(() {});
   }
 
@@ -310,9 +331,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     //Finding date and path
-    final Directory _dir = await getApplicationDocumentsDirectory();
+    final String _dir = await getFolderPath();
     final DateTime _now = DateTime.now();
-    final String _path = '${_dir.path}/${_now.toIso8601String()}.jpg';
+    final String _path = '$_dir/${_now.toIso8601String()}.jpg';
     await photo.saveTo(_path);
 
     //Adding to database
